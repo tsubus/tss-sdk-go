@@ -23,10 +23,10 @@ const (
 	defaultTLD           string = "com"
 )
 
-// UserCredential holds the username and password that the API should use to
+// UserCredential holds the username and password or access token that the API should use to
 // authenticate to the REST API
 type UserCredential struct {
-	Domain, Username, Password string
+	AccessToken, Domain, Username, Password string
 }
 
 // Configuration settings for the API
@@ -205,6 +205,10 @@ func (s Server) uploadFile(secretId int, fileField SecretField) error {
 // getAccessToken gets an OAuth2 Access Grant and returns the token
 // endpoint and get an accessGrant.
 func (s Server) getAccessToken() (string, error) {
+	if s.Credentials.AccessToken != "" {
+		return s.Credentials.AccessToken, nil
+	}
+
 	values := url.Values{
 		"username":   {s.Credentials.Username},
 		"password":   {s.Credentials.Password},

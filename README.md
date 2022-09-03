@@ -25,11 +25,24 @@ type Configuration struct {
 
 Define a `Configuration`, use it to create an instance of `Server`:
 
+Authentication with username and password:
 ```golang
 tss := server.New(server.Configuration{
     Credentials: UserCredential{
         Username: os.Getenv("TSS_USERNAME"),
         Password: os.Getenv("TSS_PASSWORD"),
+    },
+    // Expecting either the tenant or URL to be set
+    Tenant:    os.Getenv("TSS_API_TENANT"),
+    ServerURL: os.Getenv("TSS_SERVER_URL"),
+})
+```
+
+Authentication with access token:
+```golang
+tss := server.New(server.Configuration{
+    Credentials: UserCredential{
+        AccessToken: os.Getenv("TSS_TOKEN"),
     },
     // Expecting either the tenant or URL to be set
     Tenant:    os.Getenv("TSS_API_TENANT"),

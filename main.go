@@ -9,12 +9,23 @@ import (
 )
 
 func main() {
-	tss, err := server.New(server.Configuration{
-		Credentials: server.UserCredential{
+	var userCredential server.UserCredential
+
+	accessToken := os.Getenv("TSS_TOKEN")
+	if accessToken == "" {
+		userCredential = server.UserCredential{
 			Username: os.Getenv("TSS_USERNAME"),
 			Password: os.Getenv("TSS_PASSWORD"),
-		},
-		Tenant: os.Getenv("TSS_TENANT"),
+		}
+	} else {
+		userCredential = server.UserCredential{
+			AccessToken: accessToken,
+		}
+	}
+
+	tss, err := server.New(server.Configuration{
+		Credentials: userCredential,
+		Tenant:      os.Getenv("TSS_TENANT"),
 	})
 	if err != nil {
 		log.Fatal().Err(err).Msg("error initializing the server configuration")
