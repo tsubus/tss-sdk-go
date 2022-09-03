@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/DelineaXPM/tss-sdk-go/v2/server"
 	"github.com/rs/zerolog/log"
+	"github.com/tsubus/tss-sdk-go/v3/server"
 )
 
 func main() {
