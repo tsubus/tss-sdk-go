@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -32,6 +34,7 @@ type Configuration struct {
 	Credentials                                      UserCredential
 	ServerURL, TLD, Tenant, apiPathURI, tokenPathURI string
 	TLSClientConfig                                  *tls.Config
+	LogLevel                                         LogLevel
 }
 
 // Server provides access to secrets stored in Delinea Secret Server
@@ -58,6 +61,20 @@ func New(config Configuration) (*Server, error) {
 		config.tokenPathURI = defaultTokenPathURI
 	}
 	config.tokenPathURI = strings.Trim(config.tokenPathURI, "/")
+
+	switch config.LogLevel {
+	case LevelTrace:
+		zerolog.SetGlobalLevel(zerolog.TraceLevel)
+	case LevelDebug:
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	case LevelWarn:
+		zerolog.SetGlobalLevel(zerolog.WarnLevel)
+	case LevelError:
+		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+	default:
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	}
+
 	return &Server{config}, nil
 }
 
@@ -94,7 +111,7 @@ func (s Server) accessResource(method, resource, path string, input interface{})
 	default:
 		message := "unknown resource"
 
-		log.Printf("[ERROR] %s: %s", message, resource)
+		log.Error().Msgf("%s: %s", message, resource)
 		return nil, fmt.Errorf(message)
 	}
 
@@ -104,22 +121,20 @@ func (s Server) accessResource(method, resource, path string, input interface{})
 		if data, err := json.Marshal(input); err == nil {
 			body = bytes.NewBuffer(data)
 		} else {
-			log.Print("[ERROR] marshaling the request body to JSON:", err)
+			log.Error().Err(err).Msg("marshaling the request body to JSON")
 			return nil, err
 		}
 	}
 
 	req, err := http.NewRequest(method, s.urlFor(resource, path), body)
-
 	if err != nil {
-		log.Printf("[ERROR] creating req: %s /%s/%s: %s", method, resource, path, err)
+		log.Error().Msgf("creating req: %s /%s/%s: %s", method, resource, path, err)
 		return nil, err
 	}
 
 	accessToken, err := s.getAccessToken()
-
 	if err != nil {
-		log.Print("[ERROR] error getting accessToken:", err)
+		log.Error().Err(err).Msg("error getting accessToken")
 		return nil, err
 	}
 
@@ -130,7 +145,7 @@ func (s Server) accessResource(method, resource, path string, input interface{})
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	log.Printf("[DEBUG] calling %s %s", method, req.URL.String())
+	log.Debug().Msgf("calling %s %s", method, req.URL.String())
 
 	data, _, err := handleResponse((&http.Client{}).Do(req))
 
@@ -140,14 +155,14 @@ func (s Server) accessResource(method, resource, path string, input interface{})
 // uploadFile uploads the file described in the given fileField to the
 // secret at the given secretId as a multipart/form-data request.
 func (s Server) uploadFile(secretId int, fileField SecretField) error {
-	log.Printf("[DEBUG] uploading a file to the '%s' field with filename '%s'", fileField.Slug, fileField.Filename)
+	log.Debug().Msgf("uploading a file to the '%s' field with filename '%s'", fileField.Slug, fileField.Filename)
 	body := bytes.NewBuffer([]byte{})
 	path := fmt.Sprintf("%d/fields/%s", secretId, fileField.Slug)
 
 	// Fetch the access token
 	accessToken, err := s.getAccessToken()
 	if err != nil {
-		log.Print("[ERROR] error getting accessToken:", err)
+		log.Error().Err(err).Msg("error getting accessToken")
 		return err
 	}
 
@@ -156,10 +171,10 @@ func (s Server) uploadFile(secretId int, fileField SecretField) error {
 	filename := fileField.Filename
 	if filename == "" {
 		filename = "File.txt"
-		log.Printf("[DEBUG] field has no filename, setting its filename to '%s'", filename)
+		log.Debug().Msgf("field has no filename, setting its filename to '%s'", filename)
 	} else if match, _ := regexp.Match("[^.]+\\.\\w+$", []byte(filename)); !match {
 		filename = filename + ".txt"
-		log.Printf("[DEBUG] field has no filename extension, setting its filename to '%s'", filename)
+		log.Debug().Msgf("field has no filename extension, setting its filename to '%s'", filename)
 	}
 	form, err := multipartWriter.CreateFormFile("file", filename)
 	if err != nil {
@@ -181,7 +196,7 @@ func (s Server) uploadFile(secretId int, fileField SecretField) error {
 	}
 	req.Header.Add("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
-	log.Printf("[DEBUG] uploading file with PUT %s", req.URL.String())
+	log.Debug().Msgf("uploading file with PUT %s", req.URL.String())
 	_, _, err = handleResponse((&http.Client{}).Do(req))
 
 	return err
@@ -201,9 +216,8 @@ func (s Server) getAccessToken() (string, error) {
 
 	body := strings.NewReader(values.Encode())
 	data, _, err := handleResponse(http.Post(s.urlFor("token", ""), "application/x-www-form-urlencoded", body))
-
 	if err != nil {
-		log.Print("[ERROR] grant response error:", err)
+		log.Error().Err(err).Msg("grant response error")
 		return "", err
 	}
 
@@ -215,8 +229,19 @@ func (s Server) getAccessToken() (string, error) {
 	}{}
 
 	if err = json.Unmarshal(data, &grant); err != nil {
-		log.Print("[ERROR] parsing grant response:", err)
+		log.Error().Err(err).Msg("parsing grant response")
 		return "", err
 	}
+
 	return grant.AccessToken, nil
 }
+
+type LogLevel int
+
+const (
+	LevelTrace LogLevel = -2
+	LevelDebug LogLevel = -1
+	LevelInfo  LogLevel = 0
+	LevelWarn  LogLevel = 1
+	LevelError LogLevel = 2
+)

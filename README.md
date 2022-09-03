@@ -17,7 +17,7 @@ type UserCredential struct {
 
 type Configuration struct {
     Credentials UserCredential
-    ServerURL, TLD, Tenant, apiPathURI, tokenPathURI string
+    ServerURL, TLD, Tenant, LogLevel, apiPathURI, tokenPathURI string
 }
 ```
 
@@ -114,7 +114,7 @@ The necessary configuration may also be configured from environment variables:
 | TSS_USERNAME   | The user name for the Secret Server                                                                                                      |
 | TSS_PASSWORD   | The password for the user                                                                                                                |
 | TSS_TENANT     | Name for tenants hosted in the Secret Server Cloud. This is prepended to the *.secretservercloud.com domain to determine the server URL. |
-| TSS_SERVER_URL | URL for servers not hosted in the cloud, eg: https://delinea.mycompany.com/SecretServer                                                 |
+| TSS_SERVER_URL | URL for servers not hosted in the cloud, eg: https://delinea.mycompany.com/SecretServer                                                  |
 
 ### Test #1 - Read Secret Password
 Reads the secret with ID `1` or the ID passed in the `TSS_SECRET_ID` environment variable 

@@ -3,8 +3,9 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"strconv"
+
+	"github.com/rs/zerolog/log"
 )
 
 // templateResource is the HTTP URL path component for the secret templates resource
@@ -30,7 +31,7 @@ func (s Server) SecretTemplate(id int) (*SecretTemplate, error) {
 
 	if data, err := s.accessResource("GET", templateResource, strconv.Itoa(id), nil); err == nil {
 		if err = json.Unmarshal(data, secretTemplate); err != nil {
-			log.Printf("[ERROR] error parsing response from /%s/%d: %q", templateResource, id, data)
+			log.Error().Msgf("error parsing response from /%s/%d: %q", templateResource, id, data)
 			return nil, err
 		}
 	} else {
@@ -44,11 +45,10 @@ func (s Server) SecretTemplate(id int) (*SecretTemplate, error) {
 // template. The password adheres to the password requirements associated with the field. NOTE: this should only be
 // used with fields whose IsPassword property is true.
 func (s Server) GeneratePassword(slug string, template *SecretTemplate) (string, error) {
-
 	fieldId, found := template.FieldSlugToId(slug)
 
 	if !found {
-		log.Printf("[ERROR] the alias '%s' does not identify a field on the template named '%s'", slug, template.Name)
+		log.Error().Msgf("the alias '%s' does not identify a field on the template named '%s'", slug, template.Name)
 	}
 	path := fmt.Sprintf("generate-password/%d", fieldId)
 
@@ -65,11 +65,11 @@ func (s Server) GeneratePassword(slug string, template *SecretTemplate) (string,
 func (s SecretTemplate) FieldIdToSlug(fieldId int) (string, bool) {
 	for _, field := range s.Fields {
 		if fieldId == field.SecretTemplateFieldID {
-			log.Printf("[TRACE] template field with slug '%s' matches the given ID '%d'", field.FieldSlugName, fieldId)
+			log.Trace().Msgf("template field with slug '%s' matches the given ID '%d'", field.FieldSlugName, fieldId)
 			return field.FieldSlugName, true
 		}
 	}
-	log.Printf("[ERROR] no matching template field with id '%d' in template '%s'", fieldId, s.Name)
+	log.Error().Msgf("no matching template field with id '%d' in template '%s'", fieldId, s.Name)
 	return "", false
 }
 
@@ -88,10 +88,10 @@ func (s SecretTemplate) FieldSlugToId(slug string) (int, bool) {
 func (s SecretTemplate) GetField(slug string) (*SecretTemplateField, bool) {
 	for _, field := range s.Fields {
 		if slug == field.FieldSlugName {
-			log.Printf("[TRACE] template field with ID '%d' matches the given slug '%s'", field.SecretTemplateFieldID, slug)
+			log.Trace().Msgf("template field with ID '%d' matches the given slug '%s'", field.SecretTemplateFieldID, slug)
 			return &field, true
 		}
 	}
-	log.Printf("[ERROR] no matching template field with slug '%s' in template '%s'", slug, s.Name)
+	log.Error().Msgf("no matching template field with slug '%s' in template '%s'", slug, s.Name)
 	return nil, false
 }

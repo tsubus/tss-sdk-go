@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/DelineaXPM/tss-sdk-go/v2/server"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
@@ -16,15 +16,13 @@ func main() {
 		},
 		Tenant: os.Getenv("TSS_TENANT"),
 	})
-
 	if err != nil {
-		log.Fatal("Error initializing the server configuration", err)
+		log.Fatal().Err(err).Msg("error initializing the server configuration")
 	}
 
 	s, err := tss.Secret(1)
-
 	if err != nil {
-		log.Fatal("Error calling server.Secret", err)
+		log.Fatal().Err(err).Msg("error calling server.Secret")
 	}
 
 	if pw, ok := s.Field("password"); ok {
